@@ -82,7 +82,9 @@ contract DSCEngine is ReentrancyGuard {
     // Events //
     ///////////////
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
-    event CollateralRedeemed(address indexed redeemedFrom,address indexed redeemedTo, address indexed token, uint256 amount);
+    event CollateralRedeemed(
+        address indexed redeemedFrom, address indexed redeemedTo, address indexed token, uint256 amount
+    );
 
     ////////////////
     // Modifiers //
@@ -159,9 +161,12 @@ contract DSCEngine is ReentrancyGuard {
      */
     function redeemCollateralForDsc(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountDscToBurn)
         external
+        moreThanZero(amountCollateral)
+        isAllowedToken(tokenCollateralAddress)
     {
-        burnDsc(amountDscToBurn);
-        redeemCollateral(tokenCollateralAddress, amountCollateral);
+        _burnDsc(amountDscToBurn, msg.sender, msg.sender);
+        _redeemCollateral(tokenCollateralAddress, amountCollateral, msg.sender, msg.sender);
+        _revertIfHealthFactorIsBroken(msg.sender);
     }
 
     // in order to redeem collateral :
@@ -185,7 +190,7 @@ contract DSCEngine is ReentrancyGuard {
     }
 
     function burnDsc(uint256 amount) public moreThanZero(amount) {
-        _burnDsc(amount,msg.sender,msg.sender);
+        _burnDsc(amount, msg.sender, msg.sender);
         _revertIfHealthFactorIsBroken(msg.sender);
     }
 
@@ -212,15 +217,15 @@ contract DSCEngine is ReentrancyGuard {
     {
         //need to check health factor of the User
         uint256 startingUserHealthFactor = _healthFactor(user);
-        if(startingUserHealthFactor >= MIN_HEALTH_FACTOR){
+        if (startingUserHealthFactor >= MIN_HEALTH_FACTOR) {
             revert DSCEngine_HealthFactorOk();
         }
 
         uint256 tokenAmountFromDebtCovered = getTokenAmountFromUsd(collateral, debtToCover);
-        // And give them a 10% bonus for liquidation 
-        // So we are giving the liquidator $110 WETH for 100 DSC 
-        // Implement a feature to liquidate in the event the protocol is insolvent 
-        // And sweep extra amounts into a treasury 
+        // And give them a 10% bonus for liquidation
+        // So we are giving the liquidator $110 WETH for 100 DSC
+        // Implement a feature to liquidate in the event the protocol is insolvent
+        // And sweep extra amounts into a treasury
 
         uint256 bonusCollateral = (tokenAmountFromDebtCovered * LIQUIDATION_BONUS) / LIQUIDATION_PRECISION;
         uint256 totalCollateralToRedeem = tokenAmountFromDebtCovered + bonusCollateral;
@@ -228,7 +233,7 @@ contract DSCEngine is ReentrancyGuard {
         _burnDsc(debtToCover, user, msg.sender);
 
         uint256 endingUserHealthFactor = _healthFactor(user);
-        if(endingUserHealthFactor <= startingUserHealthFactor) {
+        if (endingUserHealthFactor <= startingUserHealthFactor) {
             revert DSCEngine__HealthFactorNotImproved();
         }
         _revertIfHealthFactorIsBroken(msg.sender);
@@ -249,9 +254,11 @@ contract DSCEngine is ReentrancyGuard {
         i_dsc.burn(amountDscToBurn);
     }
 
-    function _redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral, address from , address to) private {
+    function _redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral, address from, address to)
+        private
+    {
         s_collateralDeposited[from][tokenCollateralAddress] -= amountCollateral;
-        emit CollateralRedeemed(from,to, tokenCollateralAddress, amountCollateral);
+        emit CollateralRedeemed(from, to, tokenCollateralAddress, amountCollateral);
         bool success = IERC20(tokenCollateralAddress).transfer(to, amountCollateral);
         if (!success) {
             revert DSCEngine__TransferFailed();
@@ -279,7 +286,7 @@ contract DSCEngine is ReentrancyGuard {
         // 1000 ETH * 50 = 50,000 /100 = 500 DSC
         // $150ETH / 100 DSC = 1.5
         // 150 * 50 = 7500 /100 = (75/100) < 1 // UNDERCOLLATERAL
-        return _calculateHealthFactor(totalDscMinted,collateralValueInUsd);
+        return _calculateHealthFactor(totalDscMinted, collateralValueInUsd);
     }
 
     function _revertIfHealthFactorIsBroken(address user) internal view {
@@ -289,10 +296,7 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
-    function _calculateHealthFactor(
-        uint256 totalDscMinted,
-        uint256 collateralValueInUsd
-    )
+    function _calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValueInUsd)
         internal
         pure
         returns (uint256)
@@ -306,10 +310,10 @@ contract DSCEngine is ReentrancyGuard {
     /// Public Function////
     /////////////////////
 
-    function getTokenAmountFromUsd(address token, uint256 usdAmountInWei)public view returns(uint256){
+    function getTokenAmountFromUsd(address token, uint256 usdAmountInWei) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
-        (,int256 price,,,) = priceFeed.latestRoundData();
-        
+        (, int256 price,,,) = priceFeed.latestRoundData();
+
         return (usdAmountInWei * PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION);
     }
 
@@ -337,10 +341,7 @@ contract DSCEngine is ReentrancyGuard {
         (totalDscMinted, collateralValueInUsd) = _getAccountInformation(user);
     }
 
-    function calculateHealthFactor(
-        uint256 totalDscMinted,
-        uint256 collateralValueInUsd
-    )
+    function calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValueInUsd)
         external
         pure
         returns (uint256)
@@ -352,7 +353,7 @@ contract DSCEngine is ReentrancyGuard {
         return s_collateralDeposited[user][token];
     }
 
-     function getPrecision() external pure returns (uint256) {
+    function getPrecision() external pure returns (uint256) {
         return PRECISION;
     }
 
@@ -391,5 +392,4 @@ contract DSCEngine is ReentrancyGuard {
     function getHealthFactor(address user) external view returns (uint256) {
         return _healthFactor(user);
     }
-
 }

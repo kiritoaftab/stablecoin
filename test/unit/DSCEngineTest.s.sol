@@ -25,7 +25,7 @@ contract DSCEngineTest is Test {
     function setUp() public {
         deployer = new DeployDSC();
         (dsc, dsce, config) = deployer.run();
-        (ethUsdPriceFeed,btcUsdPriceFeed, weth,,) = config.activeNetworkConfig();
+        (ethUsdPriceFeed, btcUsdPriceFeed, weth,,) = config.activeNetworkConfig();
 
         ERC20Mock(weth).mint(USER, STARTING_ERC20_BALANCE);
     }
@@ -36,13 +36,14 @@ contract DSCEngineTest is Test {
 
     address[] public tokenAddresses;
     address[] public priceFeedAddresses;
+
     function testRevertsIfTokenLengthDoesntMatchPriceFeeds() public {
         tokenAddresses.push(weth);
         priceFeedAddresses.push(ethUsdPriceFeed);
         priceFeedAddresses.push(btcUsdPriceFeed);
 
         vm.expectRevert(DSCEngine.DSCEngine__TokenAddressesAndPriceFeedAddressesMustBeSameLength.selector);
-        new DSCEngine(tokenAddresses,priceFeedAddresses, address(dsc));
+        new DSCEngine(tokenAddresses, priceFeedAddresses, address(dsc));
     }
 
     ////////////////
@@ -82,14 +83,14 @@ contract DSCEngineTest is Test {
         ERC20Mock dummyToken = new ERC20Mock();
         vm.startPrank(USER);
         vm.expectRevert(DSCEngine.DSCEngine_NotAllowedToken.selector);
-        dsce.depositCollateral(address(dummyToken),AMOUNT_COLLATERAL);
+        dsce.depositCollateral(address(dummyToken), AMOUNT_COLLATERAL);
         vm.stopPrank();
     }
 
-    modifier  depositedCollateral() {
+    modifier depositedCollateral() {
         vm.startPrank(USER);
-        ERC20Mock(weth).approve(address(dsce),AMOUNT_COLLATERAL);
-        dsce.depositCollateral(weth,AMOUNT_COLLATERAL);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateral(weth, AMOUNT_COLLATERAL);
         vm.stopPrank();
         _;
     }
@@ -97,7 +98,7 @@ contract DSCEngineTest is Test {
     function testCanDepositCollateralAndGetAccountInfo() public depositedCollateral {
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = dsce.getAccountInformation(USER);
         uint256 expectedTotalDscMinted = 0;
-        uint256 expectedCollateralValueInUsd = dsce.getTokenAmountFromUsd(weth,collateralValueInUsd);
+        uint256 expectedCollateralValueInUsd = dsce.getTokenAmountFromUsd(weth, collateralValueInUsd);
         assertEq(totalDscMinted, expectedTotalDscMinted);
         assertEq(AMOUNT_COLLATERAL, expectedCollateralValueInUsd);
     }
