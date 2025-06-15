@@ -1,3 +1,5 @@
+DEV SITE for Marhaba US Dollar Coin (MUSDC)
+Quick Info of the Stable Coin
 1. Relative Stability : Anchored or Pegged --> $1.00
     1. Chainlink Price feed.
     2. Set a function to exchange ETH & BTC --> $$$
