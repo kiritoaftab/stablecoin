@@ -26,7 +26,7 @@ contract DSCEngineTest is Test {
         (dsc, dsce, config) = deployer.run();
         (ethUsdPriceFeed,, weth,,) = config.activeNetworkConfig();
 
-        ERC20Mock(weth).mint(USER,STARTING_ERC20_BALANCE);
+        ERC20Mock(weth).mint(USER, STARTING_ERC20_BALANCE);
     }
 
     ////////////////
@@ -42,7 +42,6 @@ contract DSCEngineTest is Test {
         assertEq(expectedUsd, actualUsd);
     }
 
-
     ////////////////////////////
     ///Deposit Collateral Tests//
     ////////////////////////////
@@ -52,8 +51,7 @@ contract DSCEngineTest is Test {
         ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
 
         vm.expectRevert(DSCEngine.DSCEngine__NeedsMoreThanZero.selector);
-        dsce.depositCollateral(weth,0);
+        dsce.depositCollateral(weth, 0);
         vm.stopPrank();
     }
-
 }
